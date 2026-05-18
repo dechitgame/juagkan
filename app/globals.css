@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --gold: #C9A84C;
+  --gold2: #D4AF37;
+  --bg: #0A0A0A;
+  --border: rgba(255,255,255,0.08);
+}
+
+body {
+  background: var(--bg);
+  color: white;
+  font-family: 'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+}
+
+.btn-gold {
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background: var(--gold2);
+  color: #000;
+  transition: background 0.15s;
+  cursor: pointer;
+  border: none;
+}
+.btn-gold:hover { background: #e5c84a; }
+.btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-outline {
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: 1px solid var(--border);
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+
+.card-glass {
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px);
+}
+
+.input-dark {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: white;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-dark:focus { border-color: var(--gold); }
+.input-dark::placeholder { color: rgba(255,255,255,0.25); }
+
+.game-table {
+  background: radial-gradient(ellipse 90% 60% at 50% 50%, #1a3a1a 0%, #0d1f0d 60%, #080f08 100%);
+  min-height: 100dvh;
+}
