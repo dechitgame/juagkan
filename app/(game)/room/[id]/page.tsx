@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, useState, useCallback } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { gameReducer, initGame } from '@/lib/game/gameEngine'
@@ -89,8 +89,11 @@ export default function RoomPage() {
   async function startGame() {
     if (!isHost) return
     const playerNames = players.map(p => p.username)
-    const gameState = initGame(playerNames[0], Math.max(0, playerNames.length - 1))
-    // Override player names to match room
+    const fakeChars = Array.from({ length: Math.max(0, playerNames.length - 1) }, (_, i) => ({
+      name: playerNames[i + 1] ?? `ผู้เล่น ${i + 2}`, age: 30, region: '', avatar: '🧑'
+    }))
+    const gameState = initGame(playerNames[0], fakeChars)
+    // Override player names to match room (initGame ตั้งจำนวนไพ่ถูกต้องแล้ว)
     gameState.players = gameState.players.map((p, i) => ({
       ...p,
       name: playerNames[i] ?? p.name,
@@ -106,6 +109,17 @@ export default function RoomPage() {
     const sb = createBrowserClient()
     await sb.from('game_rooms').update({ state: newState }).eq('id', roomId)
   }
+
+  // ล็อก landscape เมื่ออยู่ใน playing state
+  useEffect(() => {
+    if (roomStatus === 'playing') {
+      ;(async () => {
+        try { await (window.screen as any).orientation.lock('landscape') } catch {}
+      })()
+    } else {
+      try { (window.screen as any).orientation.unlock() } catch {}
+    }
+  }, [roomStatus])
 
   const myPlayerIndex = players.findIndex(p => p.user_id === userId)
   const isMyTurn = state && state.currentPlayerIndex === myPlayerIndex
@@ -151,11 +165,27 @@ export default function RoomPage() {
 
   if (state.phase === 'gameover') {
     const winner = state.winner !== null ? state.players[state.winner] : null
+    const iWin = state.winner === myPlayerIndex
     return (
       <main className="min-h-screen flex items-center justify-center px-4 game-table">
         <div className="card-glass p-8 text-center max-w-sm w-full space-y-4">
-          <div className="text-5xl">{winner?.name === players[myPlayerIndex]?.username ? '🎉' : '😢'}</div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--gold2)' }}>{winner?.name ?? '?'} ชนะ!</h2>
+          <div className="text-5xl">{iWin ? '🎉' : '😢'}</div>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--gold2)' }}>
+            {state.isDarkKnock ? '🌑 น็อคมืด! ' : ''}{winner?.name ?? '?'} ชนะ!
+          </h2>
+          <div className="space-y-1">
+            {state.players.map((p, i) => {
+              const rs = state.roundScores?.[i] ?? 0
+              return (
+                <div key={i} className="flex justify-between text-sm px-2">
+                  <span style={{ color: i === state.winner ? 'var(--gold)' : 'rgba(255,255,255,0.6)' }}>{p.name}</span>
+                  <span style={{ color: rs > 0 ? '#4ade80' : rs < 0 ? '#f87171' : 'rgba(255,255,255,0.4)' }}>
+                    {rs > 0 ? '+' : ''}{rs}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
           <Link href="/lobby" className="btn-gold block">กลับ Lobby</Link>
         </div>
       </main>
@@ -163,8 +193,31 @@ export default function RoomPage() {
   }
 
   return (
-    <main className="game-table flex flex-col min-h-screen select-none">
-      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+    <>
+    {/* Portrait overlay */}
+    <div className="rotate-prompt" style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: '#0A0A0A',
+      flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 16, textAlign: 'center', padding: 24,
+    }}>
+      <div style={{ fontSize: 64, animation: 'rotateTilt 1.6s ease-in-out infinite alternate' }}>📱</div>
+      <div style={{ color: '#D4AF37', fontSize: 20, fontWeight: 800 }}>หมุนหน้าจอ</div>
+      <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, lineHeight: 1.6 }}>
+        เกมนี้เล่นในแนวนอนเท่านั้น<br />กรุณาหมุนโทรศัพท์ของคุณ
+      </div>
+    </div>
+    <style>{`@keyframes rotateTilt{from{transform:rotate(0deg)}to{transform:rotate(-90deg)}}`}</style>
+
+    <main style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: 'flex', flexDirection: 'column',
+      background: 'radial-gradient(ellipse 90% 60% at 50% 50%, #1a3a1a 0%, #0d1f0d 60%, #080f08 100%)',
+      userSelect: 'none', overflowY: 'auto',
+      paddingLeft: 'env(safe-area-inset-left)',
+      paddingRight: 'env(safe-area-inset-right)',
+    }}>
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <Link href="/lobby" className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>← ออก</Link>
         <div className="flex gap-2 text-xs flex-wrap justify-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
           {state.players.map((p, i) => (
@@ -193,7 +246,7 @@ export default function RoomPage() {
           deckCount={state.deck.length}
           canDraw={!!isMyTurn && state.phase === 'draw'}
           onDrawFromDeck={() => makeMove({ type: 'DRAW_FROM_DECK' })}
-          onDrawFromDiscard={() => makeMove({ type: 'DRAW_FROM_DISCARD' })}
+          onDrawFromDiscard={() => makeMove({ type: 'TAKE_DISCARD' })}
         />
         {!isMyTurn && (
           <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
@@ -204,11 +257,21 @@ export default function RoomPage() {
 
       {isMyTurn && state.phase === 'action' && (
         <div className="flex gap-2 justify-center px-4 pb-2 flex-wrap">
+          {state.phase === 'action' && myPlayerIndex >= 0 &&
+            state.players[myPlayerIndex]?.hand.length === 1 && (
+            <button onClick={() => makeMove({ type: 'KNOCK' })}
+              className="px-6 py-2 rounded-xl text-sm font-bold animate-pulse"
+              style={{ background: 'linear-gradient(135deg,#C9A84C,#D4AF37)', color: '#000' }}>
+              🃏 น็อค!
+            </button>
+          )}
           <button onClick={() => makeMove({ type: 'LAY_MELD' })} disabled={state.selectedCardIds.length < 3}
             className="btn-gold px-5 py-2 text-sm disabled:opacity-30">ลงไพ่ ({state.selectedCardIds.length})</button>
-          <button onClick={() => makeMove({ type: 'DISCARD' })} disabled={state.selectedCardIds.length !== 1}
-            className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-30"
-            style={{ background: state.selectedCardIds.length === 1 ? '#dc2626' : '#555', color: 'white' }}>ทิ้ง</button>
+          {state.phase === 'action' && (
+            <button onClick={() => makeMove({ type: 'DISCARD' })} disabled={state.selectedCardIds.length !== 1}
+              className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-30"
+              style={{ background: state.selectedCardIds.length === 1 ? '#dc2626' : '#555', color: 'white' }}>ทิ้ง</button>
+          )}
           {state.selectedCardIds.length > 0 && (
             <button onClick={() => makeMove({ type: 'CLEAR_SELECTION' })}
               className="px-4 py-2 rounded-xl text-sm border" style={{ borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)' }}>ยกเลิก</button>
@@ -232,5 +295,6 @@ export default function RoomPage() {
         {state.log[state.log.length - 1]}
       </div>
     </main>
+    </>
   )
 }

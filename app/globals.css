@@ -5,6 +5,19 @@
   --gold2: #D4AF37;
   --bg: #0A0A0A;
   --border: rgba(255,255,255,0.08);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+html, body {
+  overscroll-behavior: none;
 }
 
 body {
@@ -49,19 +62,156 @@ body {
 
 .input-dark {
   width: 100%;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1rem;
   border-radius: 0.75rem;
-  font-size: 0.875rem;
+  font-size: 1rem; /* ≥16px — ป้องกัน iOS zoom เมื่อ focus */
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border);
   color: white;
   outline: none;
   transition: border-color 0.15s;
+  -webkit-appearance: none;
 }
 .input-dark:focus { border-color: var(--gold); }
 .input-dark::placeholder { color: rgba(255,255,255,0.25); }
 
+/* select ก็ต้องมี font-size 16px */
+select.input-dark { font-size: 1rem; }
+
 .game-table {
   background: radial-gradient(ellipse 90% 60% at 50% 50%, #1a3a1a 0%, #0d1f0d 60%, #080f08 100%);
   min-height: 100dvh;
+  padding-bottom: var(--safe-bottom);
 }
+
+/* Portrait overlay — แสดงเมื่อถือแนวตั้งในหน้าเกม */
+.rotate-prompt {
+  display: none !important;
+}
+@media (orientation: portrait) and (max-width: 900px) {
+  .rotate-prompt {
+    display: flex !important;
+  }
+}
+
+/* Safe area สำหรับ bottom bar บน iPhone */
+.safe-bottom { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.safe-top    { padding-top: max(0px, env(safe-area-inset-top)); }
+
+/* ═══════════════════════════════════════════════════════════
+   Royal Edition — Design Tokens (ดัมมี่ Royal Edition)
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --felt-deep:   #031a13;
+  --felt-mid:    #0a3d2a;
+  --felt-light:  #0f5a3a;
+  --felt-glow:   #1a7a4f;
+  --wood-dark:   #1d0e07;
+  --wood-mid:    #2f1810;
+  --wood-light:  #5c3318;
+  --brass:       #d4a84a;
+  --brass-light: #f3d77a;
+  --brass-deep:  #8a6418;
+  --brass-shadow:#4a3608;
+  --gold-text:   #e6c275;
+  --parchment:   #f6efdc;
+  --ink:         #1a1410;
+  --ruby:        #b81e35;
+  --ruby-deep:   #7a0f1f;
+  --noir:        #161210;
+  --th-display:  "Charm", "Bai Jamjuree", system-ui, serif;
+  --th-body:     "Bai Jamjuree", system-ui, sans-serif;
+  --en-display:  "Cinzel Decorative", "Cinzel", serif;
+  --en-body:     "Cinzel", serif;
+}
+
+/* Felt table — used inside royal game screen */
+.royal-felt {
+  background: radial-gradient(ellipse 70% 90% at 50% 50%,
+    var(--felt-glow) 0%, var(--felt-light) 30%, var(--felt-mid) 60%, var(--felt-deep) 100%);
+  position: relative;
+}
+.royal-felt::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.06) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay; opacity: .7;
+}
+.royal-felt::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 100% 80% at 50% 50%, transparent 40%, rgba(0,0,0,.55) 100%);
+}
+
+/* Brass button */
+.btn-brass {
+  appearance: none; border: 0; cursor: pointer;
+  background: linear-gradient(180deg, #f3d77a 0%, #d4a84a 45%, #8a6418 100%);
+  color: #1a1006; font-family: var(--th-display); font-weight: 700;
+  border: 1px solid #4a3608; border-radius: 6px;
+  padding: 6px 14px; font-size: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.5);
+  text-shadow: 0 1px 0 rgba(255,255,255,.45);
+  transition: transform .08s, filter .12s;
+}
+.btn-brass:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-brass:active:not(:disabled) { transform: translateY(1px); filter: brightness(.95); }
+.btn-brass:disabled { filter: grayscale(.65) brightness(.6); cursor: default; }
+
+/* Brass pill — score/status chip */
+.brass-pill {
+  background: linear-gradient(180deg, #f3d77a, #d4a84a 50%, #a07a20);
+  color: #2a1d05; border: 1px solid #5a3f08; border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5);
+}
+
+/* Brass text gradient */
+.brass-text {
+  background: linear-gradient(180deg, #f3d77a 0%, #d4a84a 50%, #8a6418 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.6));
+}
+
+/* Card back pattern */
+.royal-cardback {
+  background: radial-gradient(ellipse at 30% 30%, #2a4f8a 0%, #0a1f4d 50%, #03102a 100%);
+  border: 1px solid #5a4318; border-radius: 6px;
+  box-shadow: inset 0 0 0 2px #d4a84a55, inset 0 0 0 3px #03102a, inset 0 0 0 4px #d4a84a88,
+    0 2px 4px rgba(0,0,0,.4), 0 6px 12px rgba(0,0,0,.35);
+  position: relative; overflow: hidden;
+}
+.royal-cardback::before {
+  content: ""; position: absolute; inset: 5px; border-radius: 3px;
+  background:
+    repeating-linear-gradient(45deg, rgba(212,168,74,.22) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(212,168,74,.18) 0 2px, transparent 2px 6px);
+}
+.royal-cardback::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(212,168,74,.18) 0%, transparent 60%);
+}
+
+/* Avatar brass ring */
+.avatar-ring-brass {
+  display: grid; place-items: center; border-radius: 999px;
+  background: conic-gradient(from 0deg, #8a6418, #f3d77a, #d4a84a, #6b4d10, #f3d77a, #d4a84a, #8a6418);
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px #00000088;
+}
+
+/* Animations */
+@keyframes turn-pulse {
+  0%,100% { box-shadow: 0 0 0 2px var(--brass) inset, 0 0 8px var(--brass), 0 0 16px var(--brass); }
+  50%      { box-shadow: 0 0 0 2px var(--brass-light) inset, 0 0 16px var(--brass-light), 0 0 32px var(--brass); }
+}
+.pulse-gold { animation: turn-pulse 1.8s ease-in-out infinite; }
+
+@keyframes royal-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.royal-fade-up { animation: royal-fade-up .35s ease-out; }
+
+/* Scrollbar hide */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

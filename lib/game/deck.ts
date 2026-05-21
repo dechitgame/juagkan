@@ -8,9 +8,22 @@ export const RANK_ORDER: Record<string, number> = {
   '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13,
 }
 
-export const CARD_VALUE: Record<string, number> = {
-  A: 11, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-  '8': 8, '9': 9, '10': 10, J: 10, Q: 10, K: 10, JOKER: 20,
+// แต้มไพ่ตามกติการัมมี่ไทย
+const BASE_SCORE: Record<string, number> = {
+  '2': 5, '3': 5, '4': 5, '5': 5, '6': 5, '7': 5, '8': 5, '9': 5,
+  '10': 10, J: 10, Q: 10, K: 10, A: 15,
+}
+
+/** คำนวณแต้มไพ่ 1 ใบ (รวมไพ่หัวและสปาโต) */
+export function cardScore(card: Card, headCardId: string | null): number {
+  if (card.id === headCardId) return 50
+  if (isSpato(card)) return 50
+  return BASE_SCORE[card.rank] ?? 5
+}
+
+/** ไพ่สปาโต: 2♣ หรือ Q♠ */
+export function isSpato(card: Card): boolean {
+  return card.id === 'clubs_2' || card.id === 'spades_Q'
 }
 
 export function createDeck(): Card[] {
@@ -20,9 +33,7 @@ export function createDeck(): Card[] {
       cards.push({ id: `${suit}_${rank}`, suit, rank, isJoker: false })
     }
   }
-  cards.push({ id: 'joker_1', suit: 'joker', rank: 'JOKER', isJoker: true })
-  cards.push({ id: 'joker_2', suit: 'joker', rank: 'JOKER', isJoker: true })
-  return cards
+  return cards  // 52 ใบ ไม่มีโจ๊กเกอร์
 }
 
 export function shuffle<T>(arr: T[]): T[] {
@@ -34,12 +45,7 @@ export function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-export function cardValue(card: Card): number {
-  return CARD_VALUE[card.rank] ?? 0
-}
-
 export function cardName(card: Card): string {
-  if (card.isJoker) return '🃏'
   const sym: Record<string, string> = { spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣' }
-  return `${card.rank}${sym[card.suit as string] ?? ''}`
+  return `${card.rank}${sym[card.suit] ?? ''}`
 }

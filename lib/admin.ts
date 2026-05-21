@@ -1,0 +1,6 @@
+/** Admin email whitelist */
+export const ADMIN_EMAILS = ['dechitgame@gmail.com']
+
+export function isAdminEmail(email: string | undefined | null): boolean {
+  return !!email && ADMIN_EMAILS.includes(email)
+}

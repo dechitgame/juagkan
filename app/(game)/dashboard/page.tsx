@@ -1,16 +1,64 @@
-import { createServerClient, createServiceClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createBrowserClient } from '@/lib/supabase/client'
 
-export default async function DashboardPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+interface Profile {
+  username: string
+  credits: number
+  total_wins: number
+  total_losses: number
+}
 
-  const sb = createServiceClient()
-  const { data: profile } = await sb
-    .from('user_profiles')
-    .select('username, credits, total_wins, total_losses')
-    .eq('id', user!.id)
-    .single()
+export default function DashboardPage() {
+  const router = useRouter()
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        // อ่าน session จาก localStorage ตรงๆ เหมือน layout
+        const projectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+          .replace('https://', '').split('.')[0]
+        const raw = localStorage.getItem(`sb-${projectRef}-auth-token`)
+        if (!raw) { router.replace('/login'); return }
+
+        const session = JSON.parse(raw)
+        const now = Math.floor(Date.now() / 1000)
+        if (!session?.access_token || !session?.user?.id) { router.replace('/login'); return }
+        if (session.expires_at && session.expires_at < now) { router.replace('/login'); return }
+
+        const userId = session.user.id
+        const email = session.user.email ?? ''
+        setUser({ id: userId, email })
+
+        const sb = createBrowserClient()
+        const { data } = await sb
+          .from('user_profiles')
+          .select('username, credits, total_wins, total_losses')
+          .eq('id', userId)
+          .single()
+
+        setProfile(data)
+        setLoading(false)
+      } catch {
+        router.replace('/login')
+      }
+    }
+    load()
+  }, [])
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center" style={{ background: '#0A0A0A' }}>
+        <div className="text-4xl animate-pulse">🃏</div>
+      </main>
+    )
+  }
 
   const username = profile?.username ?? user?.email?.split('@')[0] ?? 'ผู้เล่น'
   const credits = profile?.credits ?? 0
