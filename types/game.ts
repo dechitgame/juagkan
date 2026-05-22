@@ -42,6 +42,7 @@ export interface GameState {
   knockMultiplier: number           // 1=ปกติ, 2=มืด/สี, 4=มืดสี
   roundScores: number[]             // แต้มรอบนี้ต่อผู้เล่น (รวม penalty ระหว่างเกม)
   roundNumber: number
+  turnCount: number                 // จำนวนตาที่เล่นไปแล้วในรอบนี้
   log: string[]
 }
 

@@ -50,6 +50,7 @@ export function initGame(playerName: string, characters: Character[]): GameState
     knockMultiplier: 1,
     roundScores: new Array(playerCount).fill(0),
     roundNumber: 1,
+    turnCount: 0,
     log: ['เริ่มเกมใหม่! 🃏'],
   }
 }
@@ -58,11 +59,14 @@ function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v))
 }
 
+const MAX_TURNS = 60
+
 function nextTurn(s: GameState) {
   s.currentPlayerIndex = (s.currentPlayerIndex + 1) % s.players.length
   s.phase = 'draw'
   s.selectedCardIds = []
   s.tookDiscardThisTurn = false
+  s.turnCount++
 }
 
 // ─── ตรวจน็อคสี: ไพ่ทุกชุดของผู้น็อคเป็นดอกเดียวกัน ─────────────────────────
@@ -273,6 +277,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     // ── ทิ้งไพ่ — จบตา ────────────────────────────────────────────────────────
     case 'DISCARD': {
       if (s.phase !== 'action' || s.selectedCardIds.length !== 1) return state
+      // BUG #1 fix: หยิบจากกองทิ้งแล้ว ต้องเกิด (LAY_MELD) ก่อนทิ้งได้
+      if (s.tookDiscardThisTurn && !cur.hasLaid) {
+        s.log.push('⚠️ ต้องวางชุดก่อนทิ้ง (หยิบจากกองทิ้งแล้ว)')
+        return state
+      }
       const cardId = s.selectedCardIds[0]
       const idx = cur.hand.findIndex(c => c.id === cardId)
       if (idx === -1) return state
@@ -284,6 +293,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Zero-sum: ไม่มีโทษลอยตัวกลางเกม — แต้มทุกบาทมาจากผู้แพ้ ณ จบเกม
       nextTurn(s)
+      // MAX_TURNS cap — จบเกมอัตโนมัติเมื่อเกิน 60 ตา (ป้องกัน infinite loop)
+      if (s.turnCount >= MAX_TURNS) {
+        s.log.push(`⏱️ ครบ ${MAX_TURNS} ตา — จบเกม!`)
+        resolveEmptyDeck(s)
+      }
       return s
     }
 

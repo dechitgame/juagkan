@@ -81,14 +81,17 @@ export function chooseDiscard(
   hand: Card[],
   headCardId: string | null,
   nextPlayerHand?: Card[],
+  turnCount?: number,
 ): Card {
   const melds = findBestMelds(hand)
   const meldCardIds = new Set(melds.flatMap(m => m.cards.map(c => c.id)))
   const loose = hand.filter(c => !meldCardIds.has(c.id))
   const pool = loose.length > 0 ? loose : hand
 
-  if (nextPlayerHand && nextPlayerHand.length > 0) {
-    // ลองหลีกเลี่ยงทิ้งมี่
+  // หลังตา 30 เล่นเสี่ยง — ทิ้งแต้มสูงสุดทันทีโดยไม่สนว่าจะทิ้งมี่
+  const isLateGame = (turnCount ?? 0) >= 30
+  if (!isLateGame && nextPlayerHand && nextPlayerHand.length > 0) {
+    // ช่วงต้น-กลางเกม: หลีกเลี่ยงทิ้งมี่
     const safe = pool.filter(c => !canDiscardBePickedForMeld(c, nextPlayerHand))
     if (safe.length > 0) {
       return safe.sort((a, b) => cardScore(b, headCardId) - cardScore(a, headCardId))[0]
@@ -193,7 +196,7 @@ export function computePostDrawActions(state: GameState): GameAction[] {
   if (workingHand.length === 1) {
     actions.push({ type: 'KNOCK' })
   } else {
-    const discard = chooseDiscard(workingHand, headCardId, nextPlayerHand)
+    const discard = chooseDiscard(workingHand, headCardId, nextPlayerHand, state.turnCount)
     if (discard) {
       actions.push({ type: 'TOGGLE_CARD', cardId: discard.id })
       actions.push({ type: 'DISCARD' })
