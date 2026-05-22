@@ -134,10 +134,10 @@ export function computePostDrawActions(state: GameState): GameAction[] {
     }
   }
 
-  // ── วางชุดไพ่ทั้งหมดที่ทำได้ ────────────────────────────────────────────────
-  let laid = true
-  while (laid) {
-    laid = false
+  // ── วางชุดไพ่ทั้งหมดที่ทำได้ (เกิด / ฝากชุด 3+) ───────────────────────────
+  let progress = true
+  while (progress && workingHand.length > 0) {
+    progress = false
     const melds = findBestMelds(workingHand)
     for (const meld of melds) {
       const { valid } = isValidMeld(meld.cards)
@@ -150,30 +150,55 @@ export function computePostDrawActions(state: GameState): GameAction[] {
           for (const c of meld.cards) actions.push({ type: 'TOGGLE_CARD', cardId: c.id })
           actions.push({ type: 'ADD_TO_MELD', meldId: tableMeld.id })
           workingHand = workingHand.filter(c => !meld.cards.some(m => m.id === c.id))
-          laid = true
-          fakked = true
-          break
+          progress = true; fakked = true; break
         }
       }
-
       if (!fakked) {
         for (const c of meld.cards) actions.push({ type: 'TOGGLE_CARD', cardId: c.id })
         actions.push({ type: 'LAY_MELD' })
         workingHand = workingHand.filter(c => !meld.cards.some(m => m.id === c.id))
-        laid = true
+        progress = true
       }
-
       break
     }
   }
+
+  // ── ฝากไพ่เดี่ยว (single-card fak) — ลดไพ่เสียออกให้เร็วที่สุด ────────────
+  {
+    let singleFak = true
+    while (singleFak && workingHand.length > 1) {
+      singleFak = false
+      for (const card of [...workingHand]) {
+        for (const tableMeld of state.tableMelds) {
+          if (canAddToMeld(tableMeld, [card])) {
+            actions.push({ type: 'TOGGLE_CARD', cardId: card.id })
+            actions.push({ type: 'ADD_TO_MELD', meldId: tableMeld.id })
+            workingHand = workingHand.filter(c => c.id !== card.id)
+            singleFak = true; break
+          }
+        }
+        if (singleFak) break
+      }
+    }
+  }
+
+  // ── Guard: ไม่มีไพ่เหลือ (ไม่ควรเกิด — engine ป้องกันไว้แล้ว) ──────────────
+  if (workingHand.length === 0) return actions
 
   // ── น็อคหรือทิ้ง ──────────────────────────────────────────────────────────
   if (workingHand.length === 1) {
     actions.push({ type: 'KNOCK' })
   } else {
     const discard = chooseDiscard(workingHand, headCardId, nextPlayerHand)
-    actions.push({ type: 'TOGGLE_CARD', cardId: discard.id })
-    actions.push({ type: 'DISCARD' })
+    if (discard) {
+      actions.push({ type: 'TOGGLE_CARD', cardId: discard.id })
+      actions.push({ type: 'DISCARD' })
+    } else {
+      // Fallback safety — ทิ้งใบแรกที่หาได้
+      const fallback = workingHand[0]
+      actions.push({ type: 'TOGGLE_CARD', cardId: fallback.id })
+      actions.push({ type: 'DISCARD' })
+    }
   }
 
   return actions

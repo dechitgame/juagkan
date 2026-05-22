@@ -243,15 +243,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       })
       s.selectedCardIds = []
       cur.hasLaid = true
+      s.tookDiscardThisTurn = false
       s.phase = 'action'
       s.log.push(`${cur.name} ลง${type === 'set' ? 'ตอง' : 'เรียง'} ${selected.map(cardName).join(' ')}`)
-
-      // ⭐ ไพ่หัว bonus
-      if (s.headCardId && selected.some(c => c.id === s.headCardId)) {
-        cur.score += 50
-        s.roundScores[s.currentPlayerIndex] = (s.roundScores[s.currentPlayerIndex] ?? 0) + 50
-        s.log.push(`⭐ ${cur.name} ใช้ไพ่หัว! +50 แต้ม`)
-      }
+      // ⭐ ไพ่หัว: บันทึกว่าใช้แล้ว — bonus จะคิดตอน resolveKnock (ไม่บวกกลางเกมเพื่อรักษา zero-sum)
       return s
     }
 
@@ -272,14 +267,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       meld.cards.push(...selected)
       s.selectedCardIds = []
       cur.hasLaid = true
+      s.tookDiscardThisTurn = false
       s.log.push(`${cur.name} ฝาก ${selected.map(cardName).join(' ')}`)
-
-      // ⭐ ไพ่หัว bonus
-      if (s.headCardId && selected.some(c => c.id === s.headCardId)) {
-        cur.score += 50
-        s.roundScores[s.currentPlayerIndex] = (s.roundScores[s.currentPlayerIndex] ?? 0) + 50
-        s.log.push(`⭐ ${cur.name} ใช้ไพ่หัว! +50 แต้ม`)
-      }
+      // ⭐ ไพ่หัว: bonus คิดตอน resolveKnock เท่านั้น (zero-sum)
       return s
     }
 
