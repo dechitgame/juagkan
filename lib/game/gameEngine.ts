@@ -246,7 +246,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       s.tookDiscardThisTurn = false
       s.phase = 'action'
       s.log.push(`${cur.name} ลง${type === 'set' ? 'ตอง' : 'เรียง'} ${selected.map(cardName).join(' ')}`)
-      // ⭐ ไพ่หัว: บันทึกว่าใช้แล้ว — bonus จะคิดตอน resolveKnock (ไม่บวกกลางเกมเพื่อรักษา zero-sum)
+      // auto-knock: วางครบทุกใบ → ชนะทันที (ไม่ต้องรอ KNOCK action)
+      if (cur.hand.length === 0) {
+        s.log.push(`🎯 ${cur.name} วางครบทุกใบ — ชนะ!`)
+        resolveKnock(s, s.currentPlayerIndex, false)
+      }
       return s
     }
 
@@ -274,7 +278,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       cur.hasLaid = true
       s.tookDiscardThisTurn = false
       s.log.push(`${cur.name} ฝาก ${selected.map(cardName).join(' ')}`)
-      // ⭐ ไพ่หัว: bonus คิดตอน resolveKnock เท่านั้น (zero-sum)
+      // auto-knock: ฝากครบทุกใบ → ชนะทันที
+      if (cur.hand.length === 0) {
+        s.log.push(`🎯 ${cur.name} ฝากครบทุกใบ — ชนะ!`)
+        resolveKnock(s, s.currentPlayerIndex, false)
+      }
       return s
     }
 

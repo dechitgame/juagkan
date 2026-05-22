@@ -197,8 +197,11 @@ export function computePostDrawActions(state: GameState): GameAction[] {
     }
   }
 
-  // ── Guard: ไม่มีไพ่เหลือ (ไม่ควรเกิด — engine ป้องกันไว้แล้ว) ──────────────
-  if (workingHand.length === 0) return actions
+  // ── Guard: วางไพ่ครบมือ → emit KNOCK (engine จะ auto-knock ด้วย แต่เผื่อไว้) ─
+  if (workingHand.length === 0) {
+    actions.push({ type: 'KNOCK' })
+    return actions
+  }
 
   // ── น็อคหรือทิ้ง ──────────────────────────────────────────────────────────
   if (workingHand.length === 1) {
