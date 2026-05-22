@@ -70,10 +70,12 @@ export function findBestMelds(hand: Card[]): MeldCandidate[] {
 // ใช้ canDiscardBePickedForMeld (exhaustive) แทน findBestMelds (greedy) เพื่อความแม่นยำ
 export function canTakeDiscardToMeld(hand: Card[], topDiscard: Card): MeldCandidate | null {
   if (!canDiscardBePickedForMeld(topDiscard, hand)) return null
-  // หา meld candidate สำหรับ AI planning
+  // ต้องเป็น meld ที่ greedy หาเจอจริง — fallback เต็มหลอก AI ให้เก็บแล้ว lay ไม่ได้
   const withDiscard = [...hand, topDiscard]
   const melds = findBestMelds(withDiscard)
-  return melds.find(m => m.cards.some(c => c.id === topDiscard.id)) ?? { cards: [topDiscard], type: 'set' }
+  const found = melds.find(m => m.cards.some(c => c.id === topDiscard.id))
+  if (found) return found
+  return null  // exhaustive บอกเกิดได้ แต่ greedy วางแผนไม่ได้ → ไม่เก็บ ดีกว่าติด
 }
 
 // ─── เลือกไพ่ที่จะทิ้ง (หลีกเลี่ยงทิ้งมี่ถ้าทำได้) ─────────────────────────
@@ -110,9 +112,15 @@ export function computeAIActions(state: GameState): GameAction[] {
   const cur = state.players[state.currentPlayerIndex]
   const topDiscard = state.discardPile[state.discardPile.length - 1]
 
-  // เก็บได้ก็ต่อเมื่อเกิดได้ทันที (ทุกคน ไม่เกี่ยวมืด/สว่าง)
-  if (topDiscard && canTakeDiscardToMeld(cur.hand, topDiscard)) {
-    return [{ type: 'TAKE_DISCARD' }]
+  if (topDiscard) {
+    // เกิดได้ทันที (greedy มี plan) → เก็บจากกองทิ้ง
+    if (canTakeDiscardToMeld(cur.hand, topDiscard)) {
+      return [{ type: 'TAKE_DISCARD' }]
+    }
+    // single-card fak path: AI สว่างแล้ว + ไพ่บนกองทิ้งฝากต่อ table meld ได้ → เก็บเพื่อฝาก
+    if (cur.hasLaid && state.tableMelds.some(m => canAddToMeld(m, [topDiscard]))) {
+      return [{ type: 'TAKE_DISCARD' }]
+    }
   }
   return [{ type: 'DRAW_FROM_DECK' }]
 }

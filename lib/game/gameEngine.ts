@@ -192,14 +192,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'TAKE_DISCARD': {
       if (s.phase !== 'draw' || s.discardPile.length === 0) return state
       const topCard = s.discardPile[s.discardPile.length - 1]
-      if (!canDiscardBePickedForMeld(topCard, cur.hand)) {
-        s.log.push('⚠️ ต้องเกิดได้ทันที จึงจะเก็บจากกองทิ้งได้')
+      // อนุญาต: (1) เกิดได้ทันที หรือ (2) สว่างแล้ว + ฝากเดี่ยวได้
+      const canMeld = canDiscardBePickedForMeld(topCard, cur.hand)
+      const canFak = cur.hasLaid && s.tableMelds.some(m => canAddToMeld(m, [topCard]))
+      if (!canMeld && !canFak) {
+        s.log.push('⚠️ ต้องเกิดหรือฝากได้ทันที จึงจะเก็บจากกองทิ้งได้')
         return state
       }
       const card = s.discardPile.pop()!
       cur.hand.push(card)
+      s.tookDiscardThisTurn = true
       s.phase = 'action'
-      s.log.push(`${cur.name} หยิบ ${cardName(card)} เพื่อเกิด`)
+      s.log.push(`${cur.name} หยิบ ${cardName(card)} ${canMeld ? 'เพื่อเกิด' : 'เพื่อฝาก'}`)
       return s
     }
 
