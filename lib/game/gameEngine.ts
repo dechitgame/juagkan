@@ -89,10 +89,7 @@ function resolveKnock(s: GameState, knockerIdx: number, isDark: boolean) {
   const mult = (isDark && isColor) ? 4 : (isDark || isColor) ? 2 : 1
   s.knockMultiplier = mult
 
-  // ไพ่หัว bonus: ถ้าผู้น็อคใช้ไพ่หัวในชุดที่วาง
-  const knockerMeldCards = s.tableMelds.filter(m => m.ownerIndex === knockerIdx).flatMap(m => m.cards)
-  const usedHeadCard = !!s.headCardId && knockerMeldCards.some(c => c.id === s.headCardId)
-
+  // Zero-sum scoring: ผู้แพ้จ่ายแต้มให้ผู้ชนะโดยตรง ไม่มี floating bonus
   let knockerGain = 0
   for (let i = 0; i < s.players.length; i++) {
     if (i === knockerIdx) continue
@@ -100,7 +97,7 @@ function resolveKnock(s: GameState, knockerIdx: number, isDark: boolean) {
     const hand = s.players[i].hand
     let loss = hand.reduce((sum, c) => sum + cardScore(c, s.headCardId), 0)
 
-    // อมสปาโต: โทษเพิ่มอีก 50 ต่อใบ
+    // อมสปาโต: โทษเพิ่มอีก 50 ต่อใบ (ยังถือในมือ)
     loss += hand.filter(c => isSpato(c)).length * 50
 
     const totalLoss = loss * mult
@@ -110,11 +107,6 @@ function resolveKnock(s: GameState, knockerIdx: number, isDark: boolean) {
   }
 
   knockerGain *= mult
-  if (usedHeadCard) {
-    knockerGain += 50
-    s.log.push(`⭐ ${s.players[knockerIdx].name} ใช้ไพ่หัว! +50 แต้ม`)
-  }
-
   s.players[knockerIdx].score += knockerGain
   s.roundScores[knockerIdx] = (s.roundScores[knockerIdx] ?? 0) + knockerGain
 
@@ -254,6 +246,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADD_TO_MELD': {
       if (s.phase !== 'action') return state
       if (s.selectedCardIds.length === 0) return state
+      // กติกา: ฝากได้ต่อเมื่อเคยวางชุดของตัวเองแล้ว (hasLaid=true)
+      if (!cur.hasLaid) {
+        s.log.push('⚠️ ต้องเกิดก่อนจึงจะฝากได้')
+        return state
+      }
       const meld = s.tableMelds.find(m => m.id === action.meldId)
       if (!meld) return state
 
@@ -285,22 +282,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       s.selectedCardIds = []
       s.log.push(`${cur.name} ทิ้ง ${cardName(discarded)}`)
 
-      // ⚠️ ทิ้งหัว
-      if (discarded.id === s.headCardId) {
-        s.players[s.currentPlayerIndex].score -= 50
-        s.roundScores[s.currentPlayerIndex] = (s.roundScores[s.currentPlayerIndex] ?? 0) - 50
-        s.log.push(`⚠️ ทิ้งหัว! ${cur.name} -50 แต้ม`)
-      }
-
-      // ⚠️ ทิ้งมี่ — ผู้เล่นถัดไปหยิบเกิดได้ทันที
-      const nextIdx = (s.currentPlayerIndex + 1) % s.players.length
-      const nextPlayer = s.players[nextIdx]
-      if (canDiscardBePickedForMeld(discarded, nextPlayer.hand)) {
-        s.players[s.currentPlayerIndex].score -= 50
-        s.roundScores[s.currentPlayerIndex] = (s.roundScores[s.currentPlayerIndex] ?? 0) - 50
-        s.log.push(`⚠️ ทิ้งมี่! ${nextPlayer.name} เกิดได้ -50 แต้ม`)
-      }
-
+      // Zero-sum: ไม่มีโทษลอยตัวกลางเกม — แต้มทุกบาทมาจากผู้แพ้ ณ จบเกม
       nextTurn(s)
       return s
     }

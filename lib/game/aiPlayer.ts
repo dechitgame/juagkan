@@ -135,6 +135,7 @@ export function computePostDrawActions(state: GameState): GameAction[] {
   }
 
   // ── วางชุดไพ่ทั้งหมดที่ทำได้ (เกิด / ฝากชุด 3+) ───────────────────────────
+  let hasLaidThisTurn = cur.hasLaid  // track ว่าเกิดแล้วในเทิร์นนี้หรือยัง
   let progress = true
   while (progress && workingHand.length > 0) {
     progress = false
@@ -143,28 +144,31 @@ export function computePostDrawActions(state: GameState): GameAction[] {
       const { valid } = isValidMeld(meld.cards)
       if (!valid) continue
 
-      // ลองฝากก่อน
+      // ลองฝากก่อน (ฝากได้ต่อเมื่อ hasLaid แล้ว)
       let fakked = false
-      for (const tableMeld of state.tableMelds) {
-        if (canAddToMeld(tableMeld, meld.cards)) {
-          for (const c of meld.cards) actions.push({ type: 'TOGGLE_CARD', cardId: c.id })
-          actions.push({ type: 'ADD_TO_MELD', meldId: tableMeld.id })
-          workingHand = workingHand.filter(c => !meld.cards.some(m => m.id === c.id))
-          progress = true; fakked = true; break
+      if (hasLaidThisTurn) {
+        for (const tableMeld of state.tableMelds) {
+          if (canAddToMeld(tableMeld, meld.cards)) {
+            for (const c of meld.cards) actions.push({ type: 'TOGGLE_CARD', cardId: c.id })
+            actions.push({ type: 'ADD_TO_MELD', meldId: tableMeld.id })
+            workingHand = workingHand.filter(c => !meld.cards.some(m => m.id === c.id))
+            progress = true; fakked = true; break
+          }
         }
       }
       if (!fakked) {
         for (const c of meld.cards) actions.push({ type: 'TOGGLE_CARD', cardId: c.id })
         actions.push({ type: 'LAY_MELD' })
         workingHand = workingHand.filter(c => !meld.cards.some(m => m.id === c.id))
+        hasLaidThisTurn = true
         progress = true
       }
       break
     }
   }
 
-  // ── ฝากไพ่เดี่ยว (single-card fak) — ลดไพ่เสียออกให้เร็วที่สุด ────────────
-  {
+  // ── ฝากไพ่เดี่ยว (single-card fak) — ทำได้ต่อเมื่อเกิดแล้วในเทิร์นนี้ ────────
+  if (hasLaidThisTurn) {
     let singleFak = true
     while (singleFak && workingHand.length > 1) {
       singleFak = false
